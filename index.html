@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control Message Builder</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Control Msgs">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#EEF1EF">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #EEF1EF; --ink: #15202B; --muted: #55636F; --line: #CBD2D0; --surface: #FFFFFF;
+  --ember: #C2410C; --command: #1D4E89; --hivis: #E8C21A; --hivis-ink: #1B1A12;
+  --red: #C8102E; --focus: #1D4E89; --sel: #15202B; --sel-ink: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12181E; --ink: #EDF1F3; --muted: #9AA7B2; --line: #2B353F; --surface: #1A222A;
+    --ember: #D9531A; --command: #3B74B8; --focus: #8DB8EC; --sel: #EDF1F3; --sel-ink: #12181E;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12181E; --ink: #EDF1F3; --muted: #9AA7B2; --line: #2B353F; --surface: #1A222A;
+  --ember: #D9531A; --command: #3B74B8; --focus: #8DB8EC; --sel: #EDF1F3; --sel-ink: #12181E;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Barlow", "Helvetica Neue", Arial, sans-serif; font-size: 1rem; line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input { font: inherit; color: inherit; }
+.chequer { height: 14px; background: repeating-linear-gradient(90deg, var(--hivis) 0 28px, var(--red) 28px 56px); }
+.chequer.flip { background: repeating-linear-gradient(90deg, var(--red) 0 28px, var(--hivis) 28px 56px); }
+main { max-width: 34rem; margin: 0 auto; padding: 1.75rem 1.25rem 2.5rem; }
+.cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; }
+h1 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 2.4rem; line-height: 1; margin: 0 0 .4rem; }
+.intro { color: var(--muted); margin: 0 0 1.75rem; max-width: 30ch; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+/* tiles */
+.tiles { display: grid; gap: .85rem; }
+.tile {
+  display: flex; align-items: center; gap: 1rem; width: 100%; min-height: 6.5rem;
+  padding: 1.1rem 1.1rem 1.1rem 1.25rem; border: 0; border-radius: 14px; color: #fff;
+  text-align: left; cursor: pointer; transition: transform .12s ease;
+}
+.tile:active { transform: scale(.985); }
+.tile.secondary { background: var(--ember); }
+.tile.informative { background: var(--command); }
+.tile.rtc { background: var(--hivis); color: var(--hivis-ink); }
+.tile svg { flex: none; width: 44px; height: 44px; }
+.tile-text { flex: 1; }
+.tile-title { display: block; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 1.65rem; line-height: 1.05; }
+.tile-sub { display: block; font-size: .95rem; opacity: .9; margin-top: .2rem; }
+.chev { flex: none; width: 22px !important; height: 22px !important; opacity: .8; }
+
+/* flow */
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.back { display: inline-flex; align-items: center; gap: .35rem; background: none; border: 0; padding: .5rem 0; font-weight: 600; cursor: pointer; }
+.stepcount { color: var(--muted); font-size: .95rem; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 1.25rem; }
+.progress span { display: block; height: 100%; background: var(--ember); width: 0; transition: width .25s ease; }
+
+.code {
+  display: flex; gap: .4rem; margin-bottom: 1.5rem;
+}
+.code b {
+  flex: 1; max-width: 4.2rem; aspect-ratio: 4 / 5; display: grid; place-items: center;
+  border-radius: 10px; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 2.6rem; font-weight: 700;
+  background: var(--surface); border: 2px dashed var(--line); color: var(--muted);
+}
+.code b.set { background: var(--ember); border: 2px solid var(--ember); color: #fff; }
+.code b.now { border-color: var(--ember); border-style: solid; color: var(--ember); }
+.code-label { align-self: center; margin-left: .5rem; color: var(--muted); font-size: .95rem; }
+
+h2.q { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 1.9rem; line-height: 1.05; margin: 0 0 .35rem; }
+.hint { color: var(--muted); margin: 0 0 1.1rem; }
+
+.options { display: grid; gap: .6rem; }
+.opt {
+  display: flex; align-items: center; gap: .9rem; width: 100%; min-height: 3.6rem;
+  padding: .75rem 1rem; background: var(--surface); border: 2px solid var(--line); border-radius: 12px;
+  text-align: left; cursor: pointer; font-size: 1.08rem; font-weight: 500;
+}
+.opt .num {
+  flex: none; width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border-radius: 8px;
+  background: var(--bg); font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 1.35rem;
+}
+.opt.chosen { border-color: var(--ember); }
+.opt.chosen .num { background: var(--ember); color: #fff; }
+
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-weight: 600; margin-bottom: .4rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.chip {
+  min-width: 3.6rem; padding: .6rem .9rem; border-radius: 10px; border: 2px solid var(--line);
+  background: var(--surface); font-weight: 600; cursor: pointer;
+}
+.chip.chosen { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); }
+input[type=text], textarea {
+  width: 100%; padding: .85rem 1rem; font-size: 1.1rem; border-radius: 12px;
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink); font-family: inherit;
+}
+textarea { resize: vertical; min-height: 5.5rem; line-height: 1.35; }
+input[type=text]:focus, textarea:focus { border-color: var(--ember); outline: none; }
+
+.locate {
+  display: inline-flex; align-items: center; gap: .5rem; margin-top: .6rem; padding: .7rem 1rem;
+  border-radius: 10px; border: 2px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer;
+}
+.note { font-size: .92rem; color: var(--muted); margin: .5rem 0 0; }
+.note.err { color: var(--red); }
+
+.primary {
+  width: 100%; margin-top: 1.25rem; padding: 1rem; border: 0; border-radius: 12px;
+  background: var(--ember); color: #fff; font-weight: 700; font-size: 1.15rem; cursor: pointer;
+}
+.primary:disabled { opacity: .4; cursor: default; }
+.secondary-btn {
+  width: 100%; margin-top: .6rem; padding: .9rem; border-radius: 12px; border: 2px solid var(--line);
+  background: transparent; font-weight: 600; cursor: pointer;
+}
+
+.message {
+  background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 1.1rem 1.2rem;
+  font-size: 1.25rem; line-height: 1.4; white-space: pre-wrap; font-weight: 500;
+}
+.message .lead { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 1.5rem; }
+.summary { margin: 1.25rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.summary li { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid var(--line); font-size: .98rem; }
+.summary li span:first-child { color: var(--muted); }
+.summary button { background: none; border: 0; color: var(--command); font-weight: 600; cursor: pointer; padding: 0; text-align: right; }
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 1.25rem; color: var(--muted); }
+.tile.saved { background: var(--surface); color: var(--ink); border: 2px solid var(--ink); }
+.badge { flex: none; min-width: 2rem; padding: .15rem .55rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 700; text-align: center; }
+.saved-list { display: grid; gap: .85rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; border-left: 6px solid var(--accent, var(--ink)); }
+.card-meta { display: flex; justify-content: space-between; gap: 1rem; font-size: .92rem; color: var(--muted); margin-bottom: .5rem; }
+.card-meta strong { color: var(--ink); font-weight: 600; }
+.card pre { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: 1.05rem; line-height: 1.4; }
+.card-actions { display: flex; gap: .5rem; margin-top: .85rem; }
+.card-actions button { flex: 1; padding: .7rem; border-radius: 10px; border: 2px solid var(--line); background: transparent; font-weight: 600; cursor: pointer; }
+.card-actions .del { color: var(--red); }
+.card-actions .del.confirm { background: var(--red); border-color: var(--red); color: #fff; }
+.saved-note { margin: -.4rem 0 1rem; font-size: .92rem; color: var(--muted); }
+
+#flow { --flow: var(--ember); }
+.progress span { background: var(--flow); }
+.opt.chosen { border-color: var(--flow); }
+.opt:disabled { opacity: .35; text-decoration: line-through; cursor: not-allowed; }
+.opt.chosen .num { background: var(--flow); }
+input[type=text]:focus, textarea:focus { border-color: var(--flow); }
+.primary { background: var(--flow); color: var(--flow-ink, #fff); }
+.opt.chosen .num, .equip-row.on .tick { color: var(--flow-ink, #fff) !important; }
+.stepper { display: flex; align-items: center; gap: .75rem; }
+.stepper button {
+  width: 3.4rem; height: 3.4rem; border-radius: 12px; border: 2px solid var(--line);
+  background: var(--surface); font-size: 1.8rem; font-weight: 600; line-height: 1; cursor: pointer;
+}
+.stepper output {
+  min-width: 4rem; text-align: center; font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700; font-size: 2.6rem;
+}
+.num-in { width: 5rem; text-align: center; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 2.3rem !important; padding: .2rem !important; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
+.stepper .unit { color: var(--muted); font-size: 1.05rem; }
+.size { display: flex; align-items: center; gap: .6rem; }
+.size input { text-align: center; font-size: 1.6rem !important; font-weight: 600; max-width: 6.5rem; }
+.size span { color: var(--muted); font-size: 1.05rem; }
+.equip { display: grid; gap: .6rem; }
+.equip-row {
+  display: flex; align-items: center; gap: .75rem; min-height: 4rem; padding: .6rem .75rem .6rem 1rem;
+  background: var(--surface); border: 2px solid var(--line); border-radius: 12px;
+}
+.equip-row.on { border-color: var(--flow); }
+.equip-toggle {
+  flex: 1; display: flex; align-items: center; gap: .75rem; background: none; border: 0; padding: 0;
+  font-size: 1.08rem; font-weight: 500; text-align: left; cursor: pointer; min-height: 2.8rem;
+}
+.tick {
+  flex: none; width: 1.8rem; height: 1.8rem; border-radius: 6px; border: 2px solid var(--line);
+  display: grid; place-items: center; color: transparent;
+}
+.equip-row.on .tick { background: var(--flow); border-color: var(--flow); color: #fff; }
+.equip-row .stepper button { width: 2.6rem; height: 2.6rem; font-size: 1.4rem; }
+.equip-row .stepper output { min-width: 2rem; font-size: 1.8rem; }
+.chip-group { margin-bottom: .75rem; }
+.chip-group .lbl { display: block; font-size: .92rem; color: var(--muted); margin-bottom: .35rem; }
+.chip.fully { border-color: var(--red); color: var(--red); }
+.chip.fully.chosen { background: var(--red); border-color: var(--red); color: #fff; }
+.people { display: grid; gap: .75rem; margin-top: 1rem; }
+.person { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .85rem .9rem; display: grid; gap: .55rem; }
+.person-head { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 1.25rem; }
+.lbl-s { font-size: .88rem; color: var(--muted); margin-top: .15rem; }
+.veh-head { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 1.35rem; margin: .5rem 0 -.2rem; }
+.callsign { text-transform: uppercase; font-size: 1.6rem !important; font-weight: 600; letter-spacing: .04em; }
+@media (prefers-reduced-motion: reduce) { .tile, .progress span { transition: none; } }
+</style>
+</head>
+<body>
+<div class="chequer" aria-hidden="true"></div>
+<div class="chequer flip" aria-hidden="true"></div>
+
+<main>
+  <section id="home">
+    <h1>Control message builder</h1>
+    <p class="intro">Pick a message type, answer the questions, then send it to control.</p>
+    <div class="tiles">
+      <button class="tile secondary" data-flow="secondary">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6c2 7 10 10 10 20a10 10 0 0 1-20 0c0-5 3-8 5-10 0 4 2 6 4 6-1-6 1-11 1-16z"/><path d="M8 42h32"/><path d="M12 42l3-5M20 42l1-4M28 42l-1-4M36 42l-3-5"/></svg>
+        <span class="tile-text"><span class="tile-title">Secondary fire stop</span><span class="tile-sub">Grass, bins, refuse and other small outdoor fires</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+      <button class="tile informative" data-flow="informative">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="4"/><path d="M22 10h4"/><path d="M19 18h10M19 24h10M19 30h6"/></svg>
+        <span class="tile-text"><span class="tile-title">Informative message</span><span class="tile-sub">Update control on what you've found and what you're doing</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+      <button class="tile rtc" data-flow="rtc">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 32v-6l4-9c1-2 2-3 4-3h14c2 0 3 1 4 3l3 7 6 2c2 1 3 2 3 4v2"/><path d="M6 32h4M18 32h14M40 32h2"/><circle cx="14" cy="33" r="4"/><circle cx="36" cy="33" r="4"/><path d="M10 24h26"/></svg>
+        <span class="tile-text"><span class="tile-title">RTC</span><span class="tile-sub">Road traffic collision messages</span></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+      <button class="tile saved" data-flow="saved">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h28v36l-14-9-14 9z"/><path d="M17 15h14M17 21h10"/></svg>
+        <span class="tile-text"><span class="tile-title">Saved messages</span><span class="tile-sub">Review, copy or delete sent messages</span></span>
+        <span class="badge" id="savedCount">0</span>
+      </button>
+    </div>
+  </section>
+
+  <section id="savedScreen" hidden>
+    <div class="topbar"><button class="back" data-home>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>All messages</button></div>
+    <h2 class="q">Saved messages</h2>
+    <p class="hint" id="savedWhere"></p>
+    <div class="saved-list" id="savedList"></div>
+  </section>
+
+  <section id="flow" hidden>
+    <div class="topbar">
+      <button class="back" id="back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        <span id="backLabel">Back</span>
+      </button>
+      <span class="stepcount" id="stepcount"></span>
+    </div>
+    <div class="progress" id="progressWrap"><span id="progress"></span></div>
+    <div id="stage"></div>
+  </section>
+
+  <section id="placeholder" hidden>
+    <div class="topbar"><button class="back" data-home>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>All messages</button></div>
+    <h2 class="q" id="phTitle"></h2>
+    <div class="empty">The questions for this message go here. Send me the ones from your shortcut and I'll build them in.</div>
+  </section>
+</main>
+
+<script>
+/* ================= helpers ================= */
+function load(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function oneLine(t) { return String(t || "").trim().replace(/\s*\n\s*/g, ", "); }
+function listJoin(a) { return a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]; }
+const NUMS = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty"];
+const ORDS = ["", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth", "Thirteenth", "Fourteenth", "Fifteenth", "Sixteenth", "Seventeenth", "Eighteenth", "Nineteenth", "Twentieth"];
+function ordinal(n) { if (ORDS[n]) return ORDS[n]; const t = n % 100, e = n % 10; return n + (t >= 11 && t <= 13 ? "th" : e === 1 ? "st" : e === 2 ? "nd" : e === 3 ? "rd" : "th"); }
+function fireLine(A) {
+  const loc = oneLine(A.loc).replace(/\.$/, "");
+  return /fully involved/i.test(loc) ? `${loc.charAt(0).toUpperCase() + loc.slice(1)}.` : `Fire is located ${loc}.`;
+}
+const VEHICLE_TYPES = [
+  { v: "car", label: "Car", article: "a", word: "car", plural: "cars" },
+  { v: "van", label: "Van", article: "a", word: "van", plural: "vans" },
+  { v: "lgv", label: "LGV", article: "an", word: "LGV", plural: "LGVs" },
+  { v: "hgv", label: "HGV", article: "an", word: "HGV", plural: "HGVs" },
+  { v: "motorbike", label: "Motorbike", article: "a", word: "motorbike", plural: "motorbikes" },
+  { v: "ctaxi", label: "Commercial taxi (7 seater/black taxi)", article: "a", word: "commercial taxi", plural: "commercial taxis" },
+  { v: "ptaxi", label: "Private taxi", article: "a", word: "private taxi", plural: "private taxis" },
+  { v: "bus", label: "Bus", article: "a", word: "bus", plural: "buses" },
+  { v: "coach", label: "Coach", article: "a", word: "coach", plural: "coaches" },
+  { v: "other", label: "Other", article: "a", word: "vehicle", plural: "vehicles" }
+];
+function vehOf(A, k) {
+  const v = A[`v${k}type`];
+  if (v === "other") {
+    const raw = (A[`v${k}typeOther`] || "").trim(), w = raw.charAt(0).toLowerCase() + raw.slice(1);
+    return { v: "other:" + w.toLowerCase(), label: raw, word: w, plural: /s$/i.test(w) ? w : w + "s", article: /^[aeiou]/i.test(w) ? "an" : "a" };
+  }
+  return VEHICLE_TYPES.find(x => x.v === v) || {};
+}
+const PERSON_STATUS = [
+  { v: "phys", label: "Physically trapped", phrase: ["is", "are"], text: "physically trapped" },
+  { v: "med", label: "Medically trapped", phrase: ["is", "are"], text: "medically trapped" },
+  { v: "ejected", label: "Ejected from vehicle", phrase: ["was", "were"], text: "ejected from the vehicle" },
+  { v: "free", label: "Not trapped", phrase: ["is", "are"], text: "not trapped" },
+  { v: "removed", label: "Removed before arrival", phrase: ["was", "were"], text: "removed before arrival of fire service" }
+];
+function personNoun(age, sex, plural) {
+  const g = sex === "m" ? "male" : "female";
+  return age === "adult" ? `adult ${g}${plural ? "s" : ""}` : `${g} ${plural ? "children" : "child"}`;
+}
+function describeGroup(people) {
+  const order = [["adult", "m"], ["adult", "f"], ["child", "m"], ["child", "f"]];
+  const parts = order.map(([a, x]) => { const c = people.filter(p => p.age === a && p.sex === x).length;
+    return c ? `${numWord(c)} ${personNoun(a, x, c > 1)}` : ""; }).filter(Boolean);
+  return listJoin(parts);
+}
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+const RELEASED_BY = [
+  { v: "police", label: "Police Scotland", text: "released from vehicle by Police Scotland" },
+  { v: "sas", label: "SAS", text: "released from vehicle by Scottish Ambulance Service" },
+  { v: "public", label: "Members of public", text: "released from vehicle by members of the public" },
+  { v: "self", label: "Self-released", text: "self-released from vehicle" }
+];
+const CARE = [
+  { v: "checks", label: "SAS care, precautionary checks", text: "currently in care of Scottish Ambulance Service for precautionary checks" },
+  { v: "sas", label: "SAS care", text: "currently in care of Scottish Ambulance Service" },
+  { v: "none", label: "Not in SAS care", text: "" }
+];
+const CONDITIONS = [
+  { v: "none", label: "No obvious signs of injury", w: "no obvious signs of injury", solo: true },
+  { v: "cpr", label: "Not breathing, CPR in progress", plain: "not breathing with CPR in progress" },
+  { v: "breath", label: "Difficulty breathing", w: "difficulty breathing" },
+  { v: "chest", label: "Severe chest pain", w: "severe chest pain" },
+  { v: "bleed", label: "Severe bleeding", w: "severe bleeding" },
+  { v: "uncon", label: "Unconscious, breathing", plain: "unconscious and breathing" },
+  { v: "reduced", label: "Reduced consciousness", w: "reduced consciousness" },
+  { v: "neck", label: "Neck and back pain", w: "neck and back pain" },
+  { v: "unable", label: "Condition unable to assess", plain: "condition unable to be assessed", solo: true },
+  { v: "other", label: "Other" }
+];
+function condKey(p) { return (p.cond || []).slice().sort().join("+") + (p.cond && p.cond.includes("other") ? "=" + (p.condOther || "").trim().toLowerCase() : ""); }
+function condText(p) {
+  const c = p.cond || [], plain = [], w = [];
+  CONDITIONS.forEach(x => { if (!c.includes(x.v)) return;
+    if (x.v === "other") { const t = (p.condOther || "").trim(); if (t) w.push(t.charAt(0).toLowerCase() + t.slice(1)); }
+    else if (x.plain) plain.push(x.plain); else w.push(x.w); });
+  const parts = plain.slice(); if (w.length) parts.push("with " + listJoin(w));
+  return parts.join(", ");
+}
+function occupantsClause(people) {
+  if (!people.length) return ["no persons involved"];
+  const keyOf = p => (p.status === "removed" ? `removed|${p.by}|${p.care}` : `${p.status}||`) + "|" + condKey(p);
+  const order = ["phys", "med", "ejected", "free"];
+  const keys = [...new Set(people.map(keyOf))].sort((x, y) => {
+    const ix = order.indexOf(x.split("|")[0]), iy = order.indexOf(y.split("|")[0]);
+    return (ix < 0 ? 9 : ix) - (iy < 0 ? 9 : iy);
+  });
+  return keys.map(key => {
+    const g = people.filter(p => keyOf(p) === key), pl = g.length > 1, desc = describeGroup(g);
+    const [status, by, care] = key.split("|");
+    const ct = condText(g[0]), cs = ct ? `, ${ct}` : "";
+    if (status !== "removed") { const ps = PERSON_STATUS.find(x => x.v === status); return `${desc} ${pl ? ps.phrase[1] : ps.phrase[0]} ${ps.text}${cs}`; }
+    const b = RELEASED_BY.find(x => x.v === by), c = CARE.find(x => x.v === care);
+    let t = `${desc} ${pl ? "were" : "was"} ${b.text} before arrival of fire service`;
+    if (c && c.text) t += ` and ${pl ? "are" : "is"} ${c.text}`;
+    return t + cs;
+  });
+}
+const EMERGENCY_PLANS = ["Removal of the front driver's door", "Removal of the front passenger door", "Removal of the rear door", "Removal of all doors one side", "Via the tailgate", "B-post rip", "Other"];
+const FULL_PLANS = ["Roof flap", "Full roof removal", "Side removal", "Dash roll", "Dash lift", "Other"];
+function planText(A, id, list) {
+  const v = A[id];
+  const t = v === "Other" ? (A[id + "Other"] || "").trim() : v || "";
+  return /^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+}
+const CREW_EQUIP = ["HRE cutters and spreaders", "Hydraulic ram", "Stabilisation equipment", "Glass management"];
+const CREW_TASKS = [
+  { v: "safe", label: "Making vehicle safe", text: "making vehicle safe" },
+  { v: "ep", label: "Implementing the emergency plan", text: "implementing the emergency plan" },
+  { v: "fp", label: "Implementing the full plan", text: "implementing the full plan" },
+  { v: "epdone", label: "Emergency plan implemented", text: "and have implemented the emergency plan" },
+  { v: "fpdone", label: "Full plan implemented", text: "and have implemented the full plan" },
+  { v: "none", label: "Leave out of message", text: "" }
+];
+function crewSentence(c) {
+  if (!c || !c.task) return "";
+  if (c.task === "none") return c.firstAid ? "Firefighters currently administering first aid." : "";
+  let task = CREW_TASKS.find(x => x.v === c.task).text;
+  let extra = "";
+  if (c.firstAid) { if (c.task.endsWith("done")) extra = " Firefighters are also administering first aid."; else task += " and administering first aid"; }
+  const eq = (c.eq || []).map(e => e.charAt(0).toLowerCase() === e.charAt(0) ? e : (e.startsWith("HRE") ? e : e.toLowerCase()));
+  return (eq.length ? `Firefighters at work with ${listJoin(eq)} ${task}.` : `Firefighters currently at work ${task}.`) + extra;
+}
+const OUTCOMES = [
+  { v: "discharged", label: "Treated and discharged, not attending hospital" },
+  { v: "road", label: "Attending hospital by road ambulance" },
+  { v: "air", label: "Attending hospital by air ambulance" },
+  { v: "treating", label: "Still receiving treatment at scene" },
+  { v: "declined", label: "Declined treatment" },
+  { v: "c26", label: "Confirmed code 2 6" },
+  { v: "s26", label: "Suspected code 2 6" }
+];
+function casualtyList(A) {
+  const out = [];
+  for (let k = 1; k <= (A.vehicles || 0); k++) (A[`v${k}people`] || []).forEach((p, i) => out.push({ k, i, p }));
+  return out;
+}
+const numWord = n => NUMS[n] || String(n);
+const RANKS = ["FF", "CM", "WC", "SC", "GC"];
+const MODES = [{ v: "O", label: "Oscar offensive mode" }, { v: "D", label: "Delta defensive mode" }];
+const opts = st => typeof st.options === "function" ? st.options(S.A) : st.options;
+const optLabel = (st, v) => (opts(st).find(o => o.v === v) || {}).label || "";
+
+/* ================= flows ================= */
+const FLOWS = {
+  secondary: {
+    title: "Secondary fire stop", resultTitle: "Stop message", accent: "var(--ember)",
+    steps: [
+      { id: "oic", kind: "oic", title: "Officer in charge", sumLabel: "OIC" },
+      { id: "address", kind: "address", sumLabel: "Address" },
+      { id: "property", kind: "choice", code: 1, title: "What's involved?", hint: "Sets the second number.", sumLabel: "Involved", numbered: true,
+        options: [[1, "Single derelict building"], [2, "Grasslands"], [3, "Straw/Stubble"], [4, "Outdoor structure"], [5, "Refuse/Refuse container"], [6, "Derelict vehicle"]].map(([v, label]) => ({ v, label })) },
+      { id: "action", kind: "choice", code: 2, title: "Firefighting action", hint: "Sets the third number.", sumLabel: "Action", numbered: true,
+        options: [[1, "No firefighting action"], [2, "No hosereel or main jets"], [3, "Low pressure hose"], [4, "High pressure hosereel"]].map(([v, label]) => ({ v, label })) },
+      { id: "cause", kind: "choice", code: 3, title: "Cause", hint: "Sets the fourth number.", sumLabel: "Cause", numbered: true,
+        options: [{ v: 1, label: "Deliberate/Malicious" }, { v: 2, label: "Accidental" }] },
+      { id: "notes", kind: "notes", title: "Any other information?", hint: "Optional. Leave blank to skip.", sumLabel: "Other info" },
+      { id: "mode", kind: "choice", code: -1, title: "Tactical mode", sumLabel: "Mode", options: MODES }
+    ],
+    codeDigits: A => ["3", A.property ?? "", A.action ?? "", A.cause ?? ""],
+    build: A => `Stop message from\n${A.rank} ${A.name}\nAt ${oneLine(A.address)}\nCode 3${A.property}${A.action}${A.cause}\n${(A.notes || "").trim() ? A.notes.trim() + "\n" : ""}${A.mode === "O" ? "Oscar Offensive mode" : "Delta Defensive mode"}`,
+    extra: A => ({ code: "3" + A.property + A.action + A.cause })
+  },
+
+  informative: {
+    title: "Informative message", resultTitle: "Informative message", accent: "var(--command)",
+    steps: [
+      { id: "oic", kind: "oic", title: "Incident commander", sumLabel: "IC" },
+      { id: "address", kind: "address", sumLabel: "Address" },
+      { id: "ptype", kind: "choice", title: "Type of property", sumLabel: "Property",
+        options: [{ v: "Domestic", label: "Domestic" }, { v: "Commercial", label: "Commercial" }] },
+      { id: "floors", kind: "number", title: "Height of building", hint: "Number of floors.", unit: "floors", min: 1, max: 60, def: 2, sumLabel: "Height",
+        sum: A => A.floors + (A.floors === 1 ? " floor" : " floors") },
+      { id: "size", kind: "size", title: "Size of building", hint: "Your best guess, in metres.", sumLabel: "Size",
+        sum: A => `${A.sizeA} × ${A.sizeB} m` },
+      { id: "attach", kind: "choice", title: "Is the property…", sumLabel: "Type",
+        options: A => [{ v: "Detached", label: "Detached" }, { v: "Semi detached", label: "Semi detached" }, { v: "Terraced", label: "Terraced" }]
+          .concat(A.ptype === "Domestic" ? [{ v: "Block of flats", label: "Block of flats" }] : []) },
+      { id: "flats", kind: "number", title: "How many flats in the block?", unit: "flats", min: 2, max: 500, def: 4, sumLabel: "Flats",
+        show: A => A.attach === "Block of flats", sum: A => `${A.flats} in a block` },
+      { id: "build", kind: "choice", title: "Building construction", sumLabel: "Construction",
+        options: A => A.ptype === "Commercial"
+          ? ["Steel-framed structure", "Traditional masonry build", "Reinforced concrete structure", "Precast concrete structure",
+             "Timber-framed structure", "Modular/prefabricated construction", "Composite steel and concrete structure"]
+              .map(l => ({ v: l.charAt(0).toLowerCase() + l.slice(1), label: l }))
+          : [{ v: "traditional build", label: "Traditional build" }, { v: "timber framed structure", label: "Timber framed structure" }] },
+      { id: "loc", kind: "location", title: "Where is the fire?", hint: "Tap to fill, or type it.", sumLabel: "Fire location",
+        floors: A => {
+          const n = Math.max(1, A.floors || 1), out = ["Ground floor"];
+          for (let k = 1; k < n; k++) out.push(ordinal(k) + " floor");
+          return out.concat(["Roof space", "Basement"]);
+        },
+        rooms: A => (A.ptype === "Commercial"
+          ? ["Main shop floor", "Plant room", "Storeroom", "Warehouse", "Office", "Kitchen", "Toilets", "Loading bay", "Stairwell", "Roof plant"]
+          : A.attach === "Block of flats"
+            ? ["Living room", "Kitchen", "Bedroom", "Bathroom", "Hallway", "Communal stairwell", "Bin store"]
+            : ["Kitchen", "Living room", "Bedroom", "Bathroom", "Hallway", "Stairs", "Garage"]).concat(["Fully involved", "Other"]) },
+      { id: "equip", kind: "equipment", title: "Equipment in use", hint: "Tick what's in use and set how many.", sumLabel: "Equipment",
+        items: [
+          { id: "ba", one: "BA", many: "BA", label: "BA", def: 2 },
+          { id: "mj", one: "Main Jet", many: "Main Jets", label: "Main jet", def: 1 },
+          { id: "hr", one: "Hose Reel Jet", many: "Hose Reel Jets", label: "Hose reel/s", def: 1 },
+          { id: "tic", one: "Thermal Imaging Camera", many: "Thermal Imaging Cameras", label: "Thermal imaging camera", def: 1 }
+        ] },
+      { id: "baStage", kind: "choice", title: "BA board stage", sumLabel: "BA stage", show: A => !!(A.equip && A.equip.ba),
+        note: A => (A.equip && A.equip.ba > 6) ? `${A.equip.ba} BA in use, so Stage One isn't allowed. Stage Two has been selected.` : "",
+        prepare: A => { if (A.equip && A.equip.ba > 6 && A.baStage !== "BA Rapid Deployment" && A.baStage !== "BA Stage Two") A.baStage = "BA Stage Two"; },
+        options: A => [{ v: "BA Rapid Deployment", label: "BA Rapid Deployment" },
+          { v: "BA Stage One", label: "BA Stage One", disabled: !!(A.equip && A.equip.ba > 6) },
+          { v: "BA Stage Two", label: "BA Stage Two" }] },
+      { id: "persons", kind: "choice", title: "Persons", sumLabel: "Persons",
+        options: [{ v: "reported", label: "This is confirmed persons reported" }, { v: "accounted", label: "All persons accounted for" }] },
+      { id: "missing", kind: "number", title: "How many people are unaccounted for?", unit: "persons", min: 1, max: 99, def: 1, sumLabel: "Unaccounted for",
+        show: A => A.persons === "reported", sum: A => A.missing + (A.missing === 1 ? " person" : " persons") },
+      { id: "ambulance", kind: "choice", title: "Ambulance required?", sumLabel: "Ambulance", show: A => A.persons === "reported",
+        options: [{ v: true, label: "Yes, request Scottish Ambulance Service" }, { v: false, label: "No" }] },
+      { id: "pump", kind: "callsign", title: "Command and support pump", hint: "Enter the appliance call sign.", placeholder: "e.g. G02P1", sumLabel: "Command pump" },
+      { id: "protracted", kind: "choice", title: "Protracted incident?", hint: "Unknown leaves it out of the message.", sumLabel: "Protracted",
+        options: [{ v: "This will be a protracted incident.", label: "This will be a protracted incident" }, { v: "This is expected to be a protracted incident.", label: "This is expected to be a protracted incident" }, { v: "", label: "Unknown" }] },
+      { id: "mode", kind: "choice", title: "Tactical mode", sumLabel: "Mode", options: MODES }
+    ],
+    build: A => {
+      const floors = A.floors === 1 ? "single storey" : `${A.floors} storey`;
+      const desc = A.attach === "Block of flats"
+        ? `${A.ptype} ${floors} block of flats, ${A.flats} in a block, ${A.build}, measuring`
+        : `${A.ptype} ${floors} ${A.attach} ${A.build} property measuring`;
+      const l1 = `Informative message from ${A.rank} ${A.name} @ ${oneLine(A.address)} this is a ${desc} approximately ${A.sizeA} metres by ${A.sizeB} metres. ${fireLine(A)}`;
+      const items = FLOWS.informative.steps.find(s => s.id === "equip").items;
+      const eq = items.filter(i => A.equip && A.equip[i.id]).map(i => `${A.equip[i.id]} ${A.equip[i.id] === 1 ? i.one : i.many}`);
+      const l2 = eq.length ? `${listJoin(eq)} in use.` : "";
+      const parts = [];
+      if (A.equip && A.equip.ba && A.baStage) parts.push(`${A.baStage} has been implemented.`);
+      if (A.persons === "reported") {
+        let p = `This is Confirmed Persons Reported, ${numWord(A.missing)} ${A.missing === 1 ? "person" : "persons"} unaccounted for`;
+        p += A.ambulance ? ", request the attendance of Scottish Ambulance Service at this incident." : ".";
+        parts.push(p);
+      } else parts.push("All persons accounted for.");
+      if (A.protracted) parts.push(A.protracted);
+      const pump = A.mode === "O"
+        ? `${A.pump} will be command and support pump, firefighters are in\nOscar Offensive mode`
+        : `${A.pump} will be command and support pump.\nDelta Defensive mode`;
+      return [l1, l2, parts.join(" ") + " " + pump].filter(Boolean).join("\n");
+    }
+  },
+  rtc: {
+    title: "RTC", resultTitle: "RTC informative message", accent: "var(--hivis)", ink: "var(--hivis-ink)",
+    steps: A => {
+      const list = [
+        { id: "oic", kind: "oic", title: "Incident commander", sumLabel: "IC" },
+        { id: "address", kind: "address", sumLabel: "Address" },
+        { id: "vehicles", kind: "number", title: "How many vehicles are involved?", unit: "vehicles", min: 1, max: 10, def: 1, sumLabel: "Vehicles",
+          sum: A => String(A.vehicles) }
+      ];
+      const n = A.vehicles || 0;
+      for (let k = 1; k <= n; k++) {
+        const tag = n > 1 ? `Vehicle ${k} of ${n}` : "The vehicle";
+        const trapped = () => (A[`v${k}people`] || []).some(p => p.status === "phys" || p.status === "med");
+        list.push(
+          { id: `v${k}type`, kind: "choice", title: `${tag}: type`, sumLabel: `Vehicle ${k}`, other: "Type the vehicle, e.g. tractor", options: VEHICLE_TYPES },
+          { id: `v${k}road`, kind: "choice", title: `${tag}: where did it stop?`, sumLabel: `Vehicle ${k} stopped`,
+            options: [{ v: "road", label: "On the road" }, { v: "off", label: "Left the road" }] },
+          { id: `v${k}rest`, kind: "choice", title: `${tag}: how has it come to rest?`, sumLabel: `Vehicle ${k} resting`,
+            options: [{ v: "on all four wheels", label: "On four wheels" }, { v: "on its side", label: "On its side" }, { v: "on its roof", label: "On its roof" }] },
+          { id: `v${k}people`, kind: "occupants", title: `${tag}: persons involved`, hint: "Set how many, then fill in each person.", sumLabel: `Vehicle ${k} persons` },
+          { id: `v${k}ep`, kind: "plan", title: `${tag}: emergency plan`, sumLabel: `Vehicle ${k} emergency plan`, show: trapped, options: EMERGENCY_PLANS },
+          { id: `v${k}fp`, kind: "plan", title: `${tag}: full plan`, sumLabel: `Vehicle ${k} full plan`, show: trapped, options: FULL_PLANS },
+          { id: `v${k}crew`, kind: "crew", title: `${tag}: firefighters at work`, hint: "Tick any equipment in use, then pick what crews are doing.", sumLabel: `Vehicle ${k} crews` }
+        );
+      }
+      list.push({ id: "services", kind: "services", title: "Other services", hint: "Are they already in attendance?", sumLabel: "Other services" },
+        { id: "mode", kind: "choice", title: "Tactical mode", sumLabel: "Mode", options: MODES });
+      return list;
+    },
+    build: A => {
+      const n = A.vehicles;
+      const vs = Array.from({ length: n }, (_, k) => vehOf(A, k + 1));
+      const counts = [...new Set(vs.map(t => t.v))].map(v => {
+        const g = vs.filter(t => t.v === v), t = g[0];
+        return `${g.length} ${g.length === 1 ? t.word : t.plural}`;
+      });
+      const cas = Array.from({ length: n }, (_, k) => (A[`v${k + 1}people`] || []).length).reduce((x, y) => x + y, 0);
+      const casText = cas ? `with ${cas} ${cas === 1 ? "casualty" : "casualties"} involved` : "with no casualties involved";
+      const tc = Array.from({ length: n }, (_, k) => A[`v${k + 1}crew`]).some(c => c && c.cpr)
+        || Array.from({ length: n }, (_, k) => A[`v${k + 1}people`] || []).some(ps => ps.some(p => (p.cond || []).includes("cpr")));
+      const lines = [`From ${A.rank} ${A.name} at ${oneLine(A.address)}, this is an RTC involving ${listJoin(counts)}, ${casText}${tc ? ", including a time critical casualty" : ""}.`];
+      for (let k = 1; k <= n; k++) {
+        const t = vehOf(A, k);
+        const where = A[`v${k}road`] === "off"
+          ? `has left the road and come to rest ${A[`v${k}rest`]}`
+          : `has come to a stop on road and ${A[`v${k}rest`]}`;
+        const vc = n === 1 ? `The ${t.word} ${where}` : `Vehicle ${numWord(k)} is ${t.article} ${t.word} that ${where}`;
+        const oc = occupantsClause(A[`v${k}people`] || []);
+        const parts = [oc.length === 1 ? `${vc}, ${oc[0]}.` : `${vc}. ` + oc.map(c => cap(c) + ".").join(" ")];
+        const people = A[`v${k}people`] || [];
+        if (people.some(p => p.status === "phys" || p.status === "med")) {
+          parts.push(`The emergency plan is ${planText(A, `v${k}ep`, EMERGENCY_PLANS)} and ${A[`v${k}epViable`] ? "is viable" : "is not viable"}.`);
+          parts.push(`Full plan ${planText(A, `v${k}fp`, FULL_PLANS)} ${A[`v${k}fpViable`] ? "is viable" : "is not viable"}.`);
+        }
+        const crew = crewSentence(A[`v${k}crew`]);
+        if (crew) parts.push(crew);
+        if (A[`v${k}crew`] && A[`v${k}crew`].cpr) parts.push("Firefighters are carrying out CPR, this is a time critical casualty.");
+        lines.push("", parts.join(" "));
+      }
+      const req = [], svc = [];
+      if (A.sas === "yes") svc.push("Scottish Ambulance Service are in attendance.");
+      else req.push(cas ? `Scottish Ambulance Service for ${cas} ${cas === 1 ? "casualty" : "casualties"}` : "Scottish Ambulance Service");
+      if (A.police === "yes") svc.push("Police Scotland are in attendance and are carrying out traffic control.");
+      else req.push("Police Scotland for traffic management");
+      if (req.length) svc.push(`Request the attendance of ${listJoin(req)}.`);
+      lines.push("", svc.join(" "));
+      lines.push("", A.mode === "O" ? "Oscar Offensive mode" : "Delta Defensive mode");
+      return lines.join("\n");
+    }
+  },
+  casualty: {
+    title: "Casualty update", resultTitle: "Casualty update", accent: "var(--hivis)", ink: "var(--hivis-ink)",
+    steps: [{ id: "cas", kind: "casualties", title: "Casualty update", hint: "Pick what's happened to each person.", sumLabel: "Casualties",
+      sum: A => `${casualtyList(A).length} persons` }],
+    build: A => {
+      const n = A.vehicles, lines = [`Casualty update from ${A.rank} ${A.name} at ${oneLine(A.address)}.`];
+      for (let k = 1; k <= n; k++) {
+        const ppl = (A[`v${k}people`] || []).map((p, i) => ({ ...p, ...(A.cas[`${k}-${i}`] || {}) }));
+        if (!ppl.length) continue;
+        const from = n > 1 ? ` from vehicle ${numWord(k)}` : "";
+        const keyOf = p => `${p.out}|${p.pc ? 1 : 0}|${(p.reason || "").trim().toLowerCase()}|${p.pisp ? 1 : 0}`;
+        const keys = [...new Set(ppl.map(keyOf))];
+        const sent = keys.map(key => {
+          const g = ppl.filter(p => keyOf(p) === key), pl = g.length > 1, o = g[0];
+          const who = cap(describeGroup(g)) + from, has = pl ? "have" : "has", is = pl ? "are" : "is";
+          const why = [o.pc && "precautionary checks", (o.reason || "").trim()].filter(Boolean);
+          const forText = why.length ? " for " + why.join(" for ") : "";
+          switch (o.out) {
+            case "discharged": return `${who} ${has} received treatment from SAS and ${has} been discharged and will not be attending hospital.`;
+            case "road": return `${who} ${has} received treatment from SAS and will be attending hospital by road ambulance${forText}.`;
+            case "air": return `${who} ${has} received treatment from SAS and will be attending hospital by air ambulance${forText}.`;
+            case "treating": return `${who} ${is} still receiving treatment from SAS at the scene.`;
+            case "declined": return `${who} ${has} declined treatment from SAS.`;
+            case "c26": case "s26": return `${who}, this is ${o.out === "c26" ? "a confirmed" : "a suspected"} code 2 6${o.pisp === "yes" ? ", PISP has been initiated" : ""}.`;
+          }
+          return "";
+        });
+        lines.push("", sent.join(" "));
+      }
+      return lines.join("\n");
+    }
+  }
+};
+
+/* ================= state & screens ================= */
+let S = null;
+function fresh(flowKey) {
+  return { flow: flowKey, i: 0, back: false, A: { rank: load("oicRank"), name: load("oicName"), address: "" } };
+}
+const home = document.getElementById("home");
+const flowEl = document.getElementById("flow");
+const ph = document.getElementById("placeholder");
+const savedScreen = document.getElementById("savedScreen");
+const stage = document.getElementById("stage");
+
+function screen(which) {
+  home.hidden = which !== "home"; flowEl.hidden = which !== "flow"; ph.hidden = which !== "ph"; savedScreen.hidden = which !== "saved";
+  if (which === "saved") renderSaved();
+  window.scrollTo(0, 0);
+}
+function goHome() { S = null; screen("home"); }
+
+function startFlow(f, A) {
+  S = fresh(f); if (A) S.A = A;
+  flowEl.style.setProperty("--flow", FLOWS[f].accent); flowEl.style.setProperty("--flow-ink", FLOWS[f].ink || "#fff");
+  screen("flow"); render();
+}
+function startCasualtyUpdate(src) {
+  const A = { rank: src.rank, name: src.name, address: src.address, vehicles: src.vehicles, cas: {} };
+  for (let k = 1; k <= (src.vehicles || 0); k++) {
+    A[`v${k}type`] = src[`v${k}type`]; A[`v${k}typeOther`] = src[`v${k}typeOther`];
+    A[`v${k}people`] = (src[`v${k}people`] || []).map(p => ({ age: p.age, sex: p.sex }));
+  }
+  startFlow("casualty", A);
+}
+document.querySelectorAll(".tile").forEach(t => t.addEventListener("click", () => {
+  const f = t.dataset.flow;
+  if (FLOWS[f]) startFlow(f);
+  else if (f === "saved") screen("saved");
+  else { document.getElementById("phTitle").textContent = t.querySelector(".tile-title").textContent; screen("ph"); }
+}));
+document.querySelectorAll("[data-home]").forEach(b => b.addEventListener("click", goHome));
+document.getElementById("back").addEventListener("click", () => {
+  if (S.i === 0) goHome(); else { S.i--; S.back = false; render(); }
+});
+
+const F = () => FLOWS[S.flow];
+const allSteps = () => typeof F().steps === "function" ? F().steps(S.A) : F().steps;
+const visible = () => allSteps().filter(st => !st.show || st.show(S.A));
+function done(st) {
+  const A = S.A;
+  switch (st.kind) {
+    case "oic": return !!(A.rank && (A.name || "").trim());
+    case "address": return !!(A.address || "").trim();
+    case "size": return A.sizeA > 0 && A.sizeB > 0;
+    case "location": return !!(A.loc || "").trim();
+    case "callsign": return !!(A.pump || "").trim();
+    case "occupants": return Array.isArray(A[st.id]) && A[st.id].every(p => p.age && p.sex && p.status && (p.status !== "removed" || (p.by && p.care))
+      && p.cond && p.cond.length && (!p.cond.includes("other") || !!(p.condOther || "").trim()));
+    case "services": return `SAS ${A.sas === "yes" ? "here" : "requested"}, police ${A.police === "yes" ? "here" : "requested"}`;
+    case "plan": return !!A[st.id] && (A[st.id] !== "Other" || !!(A[st.id + "Other"] || "").trim()) && A[st.id + "Viable"] !== undefined;
+    case "crew": return !!(A[st.id] && A[st.id].task);
+    case "services": return !!(A.sas && A.police);
+    case "casualties": return casualtyList(A).every(({ k, i }) => { const c = A.cas[`${k}-${i}`];
+      return c && c.out && (!(c.out === "c26" || c.out === "s26") || !!c.pisp); });
+    case "equipment": return true;
+    case "notes": return true;
+    case "number": return A[st.id] > 0;
+    default:
+      if (st.other && A[st.id] === "other") return !!(A[st.id + "Other"] || "").trim();
+      return st.options ? opts(st).some(o => o.v === A[st.id] && !o.disabled) : A[st.id] !== undefined;
+  }
+}
+function advance() {
+  const v = visible();
+  if (S.back) {
+    const nxt = v.findIndex((st, k) => k > S.i && !done(st));
+    S.i = nxt === -1 ? v.length : nxt;
+    if (nxt === -1) S.back = false;
+  } else S.i++;
+  render();
+}
+
+function codeStrip(activeIdx) {
+  const d = F().codeDigits(S.A);
+  return `<div class="code">` + d.map((x, k) =>
+    `<b class="${x !== "" ? "set" : (k === activeIdx ? "now" : "")}">${x !== "" ? x : "?"}</b>`).join("") + `</div>`;
+}
+const backSvg = "";
+const nextBtn = `<button class="primary" id="next">Next</button>`;
+function stepper(id, val, unit, typed) {
+  return `<div class="stepper" data-stepper="${id}"><button type="button" data-d="-1" aria-label="Fewer">−</button>
+    ${typed ? `<input class="num-in" type="text" inputmode="numeric" aria-label="${esc(unit || "Number")}" value="${val}">` : `<output>${val}</output>`}<button type="button" data-d="1" aria-label="More">+</button>${unit ? `<span class="unit">${unit}</span>` : ""}</div>`;
+}
+
+/* ================= render ================= */
+function render() {
+  let v = visible(); const A = S.A;
+  const cur = v[S.i];
+  if (cur && cur.kind === "number" && !(A[cur.id] > 0)) { A[cur.id] = cur.def; v = visible(); }
+  const atResult = S.i >= v.length;
+  document.getElementById("backLabel").textContent = S.i === 0 ? "All messages" : "Back";
+  document.getElementById("stepcount").textContent = atResult ? "Ready to send" : `Step ${S.i + 1} of ${v.length}`;
+  document.getElementById("progress").style.width = (Math.min(S.i, v.length) / v.length * 100) + "%";
+  if (atResult) return renderResult();
+
+  const st = v[S.i]; let h = "";
+  if (st.prepare) st.prepare(A);
+  if (st.code !== undefined && F().codeDigits) h += codeStrip(st.code);
+  h += `<h2 class="q">${esc(st.title || "")}</h2>`;
+  if (st.hint) h += `<p class="hint">${esc(st.hint)}</p>`;
+
+  if (st.kind === "oic") {
+    h += `<p class="hint" style="margin-top:-.8rem">Saved on this phone for next time.</p>
+      <div class="field"><label>Rank</label><div class="chips">` +
+      RANKS.map(r => `<button class="chip ${A.rank === r ? "chosen" : ""}" data-rank="${r}">${r}</button>`).join("") +
+      `</div></div><div class="field"><label for="oicName">Name</label>
+      <input type="text" id="oicName" autocomplete="family-name" autocapitalize="words" placeholder="e.g. Hunt" value="${esc(A.name)}"></div>` + nextBtn;
+  } else if (st.kind === "address") {
+    h = `<h2 class="q">Address</h2><p class="hint">Type it, or use your location and tidy it up.</p>
+      <div class="field"><label for="addr">Incident address</label>
+      <textarea id="addr" autocapitalize="words" placeholder="e.g. 12 Anytown">${esc(A.address)}</textarea>
+      <button class="locate" id="locate" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        Use my location</button><p class="note" id="locNote" aria-live="polite"></p></div>` + nextBtn;
+  } else if (st.kind === "choice") {
+    h += `<div class="options">` + opts(st).map((o, k) =>
+      `<button class="opt ${A[st.id] === o.v ? "chosen" : ""}" data-k="${k}" ${o.disabled ? "disabled" : ""}>` +
+      (st.numbered ? `<span class="num">${esc(o.v)}</span>` : "") + `<span>${esc(o.label)}</span></button>`).join("") + `</div>`;
+    const nt = st.note ? st.note(A) : "";
+    if (nt) h += `<p class="note err">${esc(nt)}</p>` + nextBtn;
+    if (st.other) {
+      const on = A[st.id] === "other";
+      h += `<input type="text" id="choiceOther" placeholder="${esc(st.other)}" value="${esc(A[st.id + "Other"] || "")}" style="margin-top:.6rem" ${on ? "" : "hidden"}>` +
+        `<div id="otherNext" ${on ? "" : "hidden"}>${nextBtn}</div>`;
+    }
+  } else if (st.kind === "number") {
+    if (!(A[st.id] > 0)) A[st.id] = st.def;
+    h += stepper(st.id, A[st.id], st.unit, true) + nextBtn;
+  } else if (st.kind === "size") {
+    h += `<div class="size"><input type="text" inputmode="decimal" id="sizeA" aria-label="Length in metres" placeholder="8" value="${esc(A.sizeA || "")}">
+      <span>by</span><input type="text" inputmode="decimal" id="sizeB" aria-label="Width in metres" placeholder="10" value="${esc(A.sizeB || "")}"><span>metres</span></div>` + nextBtn;
+  } else if (st.kind === "location") {
+    const floorList = st.floors(A);
+    if (A.locFloor && !floorList.includes(A.locFloor)) A.locFloor = "";
+    const roomList = st.rooms(A);
+    if (A.locRoom && !roomList.includes(A.locRoom)) A.locRoom = "";
+    h += `<div class="chip-group"><span class="lbl">Floor</span><div class="chips">` +
+      floorList.map(f => `<button class="chip ${A.locFloor === f ? "chosen" : ""}" data-floor="${esc(f)}">${esc(f)}</button>`).join("") +
+      `</div></div><div class="chip-group"><span class="lbl">Room</span><div class="chips">` +
+      roomList.map(r => `<button class="chip ${r === "Fully involved" ? "fully" : ""} ${A.locRoom === r ? "chosen" : ""}" data-room="${esc(r)}">${esc(r)}</button>`).join("") +
+      `</div><input type="text" id="locOther" placeholder="Type the room or area" autocapitalize="sentences" value="${esc(A.locOther || "")}" style="margin-top:.6rem" ${A.locRoom === "Other" ? "" : "hidden"}></div><div class="field"><label for="loc">Fire location</label>
+      <textarea id="loc" placeholder="e.g. First floor bedroom">${esc(A.loc || "")}</textarea></div>` + nextBtn;
+  } else if (st.kind === "equipment") {
+    if (!A.equip) A.equip = {};
+    h += `<div class="equip">` + st.items.map(it => {
+      const n = A.equip[it.id] || 0;
+      return `<div class="equip-row ${n ? "on" : ""}" data-item="${it.id}">
+        <button class="equip-toggle" type="button" aria-pressed="${!!n}"><span class="tick">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span>${esc(it.label)}</button>
+        ${n ? stepper(it.id, n) : ""}</div>`;
+    }).join("") + `</div>` + nextBtn;
+  } else if (st.kind === "occupants") {
+    if (!Array.isArray(A[st.id])) A[st.id] = [{}];
+    const ppl = A[st.id];
+    const seg = (k, field, opts) => `<div class="chips">` + opts.map(([v, l]) =>
+      `<button class="chip ${ppl[k][field] === v ? "chosen" : ""}" data-p="${k}" data-f="${field}" data-v="${v}">${l}</button>`).join("") + `</div>`;
+    h += `<div class="stepper" data-occ>` +
+      `<button type="button" data-d="-1" aria-label="Fewer">−</button><output>${ppl.length}</output><button type="button" data-d="1" aria-label="More">+</button><span class="unit">${ppl.length === 1 ? "person" : "persons"}</span></div>` +
+      `<div class="people">` + ppl.map((p, k) => `<div class="person"><div class="person-head">Person ${k + 1}</div>
+        ${seg(k, "age", [["adult", "Adult"], ["child", "Child"]])}
+        ${seg(k, "sex", [["m", "Male"], ["f", "Female"]])}
+        ${seg(k, "status", PERSON_STATUS.map(x => [x.v, x.label]))}
+        ${p.status === "removed" ? `<span class="lbl-s">Released by</span>${seg(k, "by", RELEASED_BY.map(x => [x.v, x.label]))}
+          <span class="lbl-s">Now</span>${seg(k, "care", CARE.map(x => [x.v, x.label]))}` : ""}
+        ${p.status ? `<span class="lbl-s">Condition</span><div class="chips">` + CONDITIONS.map(x =>
+          `<button class="chip ${x.v === "cpr" ? "fully" : ""} ${(p.cond || []).includes(x.v) ? "chosen" : ""}" data-cond="${k}" data-v="${x.v}">${esc(x.label)}</button>`).join("") + `</div>
+          <input type="text" data-condother="${k}" placeholder="Describe the condition" value="${esc(p.condOther || "")}" ${(p.cond || []).includes("other") ? "" : "hidden"}>` : ""}</div>`).join("") + `</div>` + nextBtn;
+  } else if (st.kind === "plan") {
+    const vi = A[st.id + "Viable"];
+    h += `<div class="options">` + st.options.map((o, k) =>
+      `<button class="opt ${A[st.id] === o ? "chosen" : ""}" data-plan="${k}"><span>${esc(o)}</span></button>`).join("") + `</div>
+      <input type="text" id="planOther" placeholder="Type the plan" value="${esc(A[st.id + "Other"] || "")}" style="margin-top:.6rem" ${A[st.id] === "Other" ? "" : "hidden"}>
+      <div class="field" style="margin-top:1.1rem"><label>Is it viable?</label><div class="chips">
+        <button class="chip ${vi === true ? "chosen" : ""}" data-viable="1">Viable</button>
+        <button class="chip ${vi === false ? "chosen" : ""}" data-viable="0">Not viable</button></div></div>` + nextBtn;
+  } else if (st.kind === "crew") {
+    const c = A[st.id] || (A[st.id] = { eq: [] });
+    h += `<div class="field"><label>Equipment</label><div class="chips">` + CREW_EQUIP.map((e, k) =>
+      `<button class="chip ${c.eq.includes(e) ? "chosen" : ""}" data-eq="${k}">${esc(e)}</button>`).join("") + `</div></div>
+      <div class="field"><label>Casualty care</label><div class="chips">
+        <button class="chip ${c.firstAid ? "chosen" : ""}" data-fa>Firefighters administering first aid</button>
+        <button class="chip fully ${c.cpr ? "chosen" : ""}" data-cpr>Firefighters carrying out CPR</button></div></div>
+      <div class="field"><label>Crews are</label><div class="options">` + CREW_TASKS.map(t =>
+      `<button class="opt ${c.task === t.v ? "chosen" : ""}" data-task="${t.v}"><span>${esc(t.label)}</span></button>`).join("") + `</div></div>` + nextBtn;
+  } else if (st.kind === "casualties") {
+    let lastK = 0;
+    h += `<div class="people">` + casualtyList(A).map(({ k, i, p }) => {
+      const c = A.cas[`${k}-${i}`] || {}, key = `${k}-${i}`;
+      const t = vehOf(A, k);
+      const head = k !== lastK ? `<h3 class="veh-head">Vehicle ${k}${t.label ? " · " + esc(t.label) : ""}</h3>` : ""; lastK = k;
+      const hosp = c.out === "road" || c.out === "air", code = c.out === "c26" || c.out === "s26";
+      return head + `<div class="person"><div class="person-head">${esc(cap(personNoun(p.age, p.sex, false)))}</div>
+        <div class="options">` + OUTCOMES.map(o => `<button class="opt ${c.out === o.v ? "chosen" : ""}" data-cas="${key}" data-out="${o.v}"><span>${esc(o.label)}</span></button>`).join("") + `</div>
+        ${hosp ? `<div class="chips"><button class="chip ${c.pc ? "chosen" : ""}" data-pc="${key}">Precautionary checks</button></div>
+          <input type="text" data-reason="${key}" placeholder="Reason, e.g. chest pains" value="${esc(c.reason || "")}">` : ""}
+        ${code ? `<span class="lbl-s">Accept PISP implementation?</span><div class="chips">
+          <button class="chip ${c.pisp === "yes" ? "chosen" : ""}" data-pisp="${key}" data-v="yes">Yes, initiate PISP</button>
+          <button class="chip ${c.pisp === "no" ? "chosen" : ""}" data-pisp="${key}" data-v="no">No</button></div>` : ""}</div>`;
+    }).join("") + `</div>` + nextBtn;
+  } else if (st.kind === "notes") {
+    h += `<textarea id="notes" autocapitalize="sentences" placeholder="e.g. Area approx 20m by 20m, informed council">${esc(A.notes || "")}</textarea>` + nextBtn;
+  } else if (st.kind === "services") {
+    const row = (key, name) => `<div class="field"><label>${name}</label><div class="chips">
+      <button class="chip ${A[key] === "yes" ? "chosen" : ""}" data-svc="${key}" data-v="yes">In attendance</button>
+      <button class="chip ${A[key] === "no" ? "chosen" : ""}" data-svc="${key}" data-v="no">Not in attendance</button></div></div>`;
+    h += row("sas", "Scottish Ambulance Service") + row("police", "Police Scotland") +
+      `<p class="note">If not in attendance, the message requests them.</p>` + nextBtn;
+  } else if (st.kind === "callsign") {
+    h += `<div class="field"><input type="text" id="callsign" class="callsign" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="${esc(st.placeholder)}" value="${esc(A.pump || "")}"></div>` + nextBtn;
+  }
+  stage.innerHTML = h;
+  wire(st);
+}
+
+function wire(st) {
+  const A = S.A, next = document.getElementById("next");
+  const check = () => { if (next) next.disabled = !done(st); };
+  if (next) next.addEventListener("click", () => {
+    if (st.kind === "oic") { A.name = A.name.trim(); save("oicName", A.name); }
+    advance();
+  });
+
+  if (st.kind === "oic") {
+    stage.querySelectorAll("[data-rank]").forEach(b => b.addEventListener("click", () => {
+      A.rank = b.dataset.rank; save("oicRank", A.rank);
+      stage.querySelectorAll("[data-rank]").forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+    const inp = document.getElementById("oicName");
+    inp.addEventListener("input", () => { A.name = inp.value; check(); });
+  }
+  if (st.kind === "address") {
+    const ta = document.getElementById("addr");
+    ta.addEventListener("input", () => { A.address = ta.value; check(); });
+    document.getElementById("locate").addEventListener("click", locate);
+  }
+  if (st.kind === "choice") {
+    stage.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
+      A[st.id] = opts(st)[Number(b.dataset.k)].v;
+      stage.querySelectorAll(".opt").forEach(x => x.classList.toggle("chosen", x === b));
+      if (st.other && A[st.id] === "other") {
+        const inp = document.getElementById("choiceOther");
+        inp.hidden = false; document.getElementById("otherNext").hidden = false; inp.focus(); check(); return;
+      }
+      setTimeout(advance, 180);
+    }));
+  }
+  if (st.kind === "choice" && st.other) {
+    const inp = document.getElementById("choiceOther");
+    inp.addEventListener("input", () => { A[st.id + "Other"] = inp.value; check(); });
+  }
+  if (st.kind === "size") {
+    ["sizeA", "sizeB"].forEach(k => {
+      const el = document.getElementById(k);
+      el.addEventListener("input", () => { const n = parseFloat(el.value.replace(",", ".")); A[k] = n > 0 ? n : 0; check(); });
+    });
+  }
+  if (st.kind === "location") {
+    const ta = document.getElementById("loc");
+    const other = document.getElementById("locOther");
+    const fill = () => {
+      const f = A.locFloor || "";
+      let r = A.locRoom === "Other" ? (A.locOther || "").trim() : A.locRoom || "";
+      let out;
+      const flat = A.attach === "Block of flats" && f && f !== "Roof space" && !/communal|bin store/i.test(r);
+      const fl = flat ? `${f} flat` : f;
+      if (A.locRoom === "Fully involved") out = f ? `${fl} is fully involved in fire` : "Property is fully involved in fire";
+      else if (f && r) out = `${fl} ${r.charAt(0).toLowerCase() + r.slice(1)}`;
+      else if (f) out = fl;
+      else out = f || (r ? r.charAt(0).toUpperCase() + r.slice(1) : "");
+      ta.value = out; A.loc = out; check();
+    };
+    other.addEventListener("input", () => { A.locOther = other.value; fill(); });
+    stage.querySelectorAll("[data-floor]").forEach(b => b.addEventListener("click", () => {
+      A.locFloor = A.locFloor === b.dataset.floor ? "" : b.dataset.floor;
+      stage.querySelectorAll("[data-floor]").forEach(x => x.classList.toggle("chosen", x.dataset.floor === A.locFloor)); fill();
+    }));
+    stage.querySelectorAll("[data-room]").forEach(b => b.addEventListener("click", () => {
+      A.locRoom = A.locRoom === b.dataset.room ? "" : b.dataset.room;
+      stage.querySelectorAll("[data-room]").forEach(x => x.classList.toggle("chosen", x.dataset.room === A.locRoom));
+      other.hidden = A.locRoom !== "Other"; if (!other.hidden) other.focus();
+      fill();
+    }));
+    ta.addEventListener("input", () => { A.loc = ta.value; check(); });
+  }
+  if (st.kind === "equipment") {
+    stage.querySelectorAll(".equip-toggle").forEach(b => b.addEventListener("click", () => {
+      const id = b.closest("[data-item]").dataset.item, it = st.items.find(x => x.id === id);
+      A.equip[id] = A.equip[id] ? 0 : it.def; render();
+    }));
+  }
+  if (st.kind === "occupants") {
+    const ppl = A[st.id];
+    stage.querySelectorAll("[data-occ] button").forEach(b => b.addEventListener("click", () => {
+      const d = Number(b.dataset.d);
+      if (d > 0 && ppl.length < 20) ppl.push({});
+      if (d < 0 && ppl.length > 0) ppl.pop();
+      render();
+    }));
+    stage.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => {
+      const p = ppl[Number(b.dataset.p)], f = b.dataset.f;
+      const was = p[f]; p[f] = b.dataset.v;
+      if (f === "status" && (!was || (was === "removed") !== (p.status === "removed"))) { const y = window.scrollY; render(); window.scrollTo(0, y); return; }
+      stage.querySelectorAll(`[data-p="${b.dataset.p}"][data-f="${f}"]`).forEach(x => x.classList.toggle("chosen", x === b));
+      check();
+    }));
+  }
+  if (st.kind === "occupants") {
+    const ppl = A[st.id];
+    stage.querySelectorAll("[data-cond]").forEach(b => b.addEventListener("click", () => {
+      const k = Number(b.dataset.cond), p = ppl[k], v = b.dataset.v, def = CONDITIONS.find(x => x.v === v);
+      let c = p.cond || [];
+      if (c.includes(v)) c = c.filter(x => x !== v);
+      else if (def.solo) c = [v];
+      else c = c.filter(x => !CONDITIONS.find(d => d.v === x).solo).concat(v);
+      p.cond = c;
+      stage.querySelectorAll(`[data-cond="${k}"]`).forEach(x => x.classList.toggle("chosen", c.includes(x.dataset.v)));
+      const inp = stage.querySelector(`[data-condother="${k}"]`); inp.hidden = !c.includes("other"); if (v === "other" && !inp.hidden) inp.focus();
+      check();
+    }));
+    stage.querySelectorAll("[data-condother]").forEach(el => el.addEventListener("input", () => { ppl[Number(el.dataset.condother)].condOther = el.value; check(); }));
+  }
+  if (st.kind === "plan") {
+    const other = document.getElementById("planOther");
+    stage.querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => {
+      A[st.id] = st.options[Number(b.dataset.plan)];
+      stage.querySelectorAll("[data-plan]").forEach(x => x.classList.toggle("chosen", x === b));
+      other.hidden = A[st.id] !== "Other"; if (!other.hidden) other.focus();
+      check();
+    }));
+    other.addEventListener("input", () => { A[st.id + "Other"] = other.value; check(); });
+    stage.querySelectorAll("[data-viable]").forEach(b => b.addEventListener("click", () => {
+      A[st.id + "Viable"] = b.dataset.viable === "1";
+      stage.querySelectorAll("[data-viable]").forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+  }
+  if (st.kind === "crew") {
+    const c = A[st.id];
+    stage.querySelectorAll("[data-eq]").forEach(b => b.addEventListener("click", () => {
+      const e = CREW_EQUIP[Number(b.dataset.eq)];
+      c.eq = c.eq.includes(e) ? c.eq.filter(x => x !== e) : CREW_EQUIP.filter(x => x === e || c.eq.includes(x));
+      b.classList.toggle("chosen", c.eq.includes(e));
+    }));
+    const fa = stage.querySelector("[data-fa]");
+    fa.addEventListener("click", () => { c.firstAid = !c.firstAid; fa.classList.toggle("chosen", c.firstAid); });
+    const cpr = stage.querySelector("[data-cpr]");
+    cpr.addEventListener("click", () => { c.cpr = !c.cpr; cpr.classList.toggle("chosen", c.cpr); });
+    stage.querySelectorAll("[data-task]").forEach(b => b.addEventListener("click", () => {
+      c.task = b.dataset.task;
+      stage.querySelectorAll("[data-task]").forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+  }
+  if (st.kind === "casualties") {
+    const get = key => A.cas[key] || (A.cas[key] = {});
+    stage.querySelectorAll("[data-out]").forEach(b => b.addEventListener("click", () => {
+      const kind = o => o === "road" || o === "air" ? "h" : o === "c26" || o === "s26" ? "c" : "";
+      const c = get(b.dataset.cas), was = kind(c.out);
+      c.out = b.dataset.out;
+      const now = kind(c.out);
+      if (was !== now) { const y = window.scrollY; render(); window.scrollTo(0, y); return; }
+      stage.querySelectorAll(`[data-cas="${b.dataset.cas}"]`).forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+    stage.querySelectorAll("[data-pisp]").forEach(b => b.addEventListener("click", () => {
+      get(b.dataset.pisp).pisp = b.dataset.v;
+      stage.querySelectorAll(`[data-pisp="${b.dataset.pisp}"]`).forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+    stage.querySelectorAll("[data-pc]").forEach(b => b.addEventListener("click", () => {
+      const c = get(b.dataset.pc); c.pc = !c.pc; b.classList.toggle("chosen", c.pc);
+    }));
+    stage.querySelectorAll("[data-reason]").forEach(el => el.addEventListener("input", () => { get(el.dataset.reason).reason = el.value; }));
+  }
+  if (st.kind === "notes") {
+    const ta = document.getElementById("notes");
+    ta.addEventListener("input", () => { A.notes = ta.value; });
+  }
+  if (st.kind === "services") {
+    stage.querySelectorAll("[data-svc]").forEach(b => b.addEventListener("click", () => {
+      A[b.dataset.svc] = b.dataset.v;
+      stage.querySelectorAll(`[data-svc="${b.dataset.svc}"]`).forEach(x => x.classList.toggle("chosen", x === b)); check();
+    }));
+  }
+  if (st.kind === "callsign") {
+    const el = document.getElementById("callsign");
+    el.addEventListener("input", () => { A.pump = el.value.toUpperCase().trim(); check(); });
+  }
+  stage.querySelectorAll("[data-stepper]").forEach(sp => sp.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const id = sp.dataset.stepper, d = Number(b.dataset.d);
+    if (st.kind === "equipment") {
+      A.equip[id] = Math.max(0, Math.min(99, (A.equip[id] || 0) + d));
+      if (!A.equip[id]) return render();
+      sp.querySelector("output").textContent = A.equip[id];
+    } else {
+      A[id] = Math.max(st.min, Math.min(st.max, (A[id] || st.def) + d));
+      sp.querySelector(".num-in").value = A[id];
+      document.getElementById("stepcount").textContent = `Step ${S.i + 1} of ${visible().length}`;
+    }
+  })));
+  stage.querySelectorAll(".num-in").forEach(inp => {
+    const id = inp.closest("[data-stepper]").dataset.stepper;
+    inp.addEventListener("focus", () => inp.select());
+    inp.addEventListener("input", () => {
+      const n = parseInt(inp.value, 10);
+      A[id] = n >= st.min && n <= st.max ? n : 0;
+      document.getElementById("stepcount").textContent = `Step ${S.i + 1} of ${visible().length}`;
+      check();
+    });
+    inp.addEventListener("blur", () => { if (!A[id]) { A[id] = st.def; inp.value = st.def; check(); } });
+  });
+  check();
+}
+
+function summaryFor(st) {
+  const A = S.A;
+  if (st.sum) return st.sum(A);
+  switch (st.kind) {
+    case "oic": return `${A.rank} ${A.name}`;
+    case "address": return oneLine(A.address);
+    case "location": return oneLine(A.loc);
+    case "callsign": return A.pump;
+    case "notes": return (A.notes || "").trim() || "None";
+    case "plan": return `${A[st.id] === "Other" ? (A[st.id + "Other"] || "") : A[st.id]}, ${A[st.id + "Viable"] ? "viable" : "not viable"}`;
+    case "crew": { const c = A[st.id] || {}; const t = CREW_TASKS.find(x => x.v === c.task); return [t && t.label, c.firstAid && "First aid", c.cpr && "CPR", ...(c.eq || [])].filter(Boolean).join(", "); }
+    case "occupants": { const p = A[st.id] || []; return p.length ? cap(describeGroup(p)) : "None"; }
+    case "equipment": {
+      const e = st.items.filter(i => A.equip && A.equip[i.id]).map(i => `${A.equip[i.id]} ${i.label}`);
+      return e.length ? e.join(", ") : "None";
+    }
+    case "choice": {
+      const l = st.other && A[st.id] === "other" ? (A[st.id + "Other"] || "") : optLabel(st, A[st.id]);
+      return st.numbered ? `${A[st.id]} · ${l}` : l;
+    }
+  }
+  return "";
+}
+
+function renderResult() {
+  const f = F(), msg = f.build(S.A), [first, ...rest] = msg.split("\n");
+  const isStop = S.flow === "secondary";
+  const body = isStop
+    ? `<span class="lead">${esc(first)}</span>\n${esc(rest.join("\n"))}`
+    : esc(msg);
+  stage.innerHTML = `<h2 class="q">${esc(f.resultTitle)}</h2><p class="hint">Check it, then copy and send to control.</p>
+    <div class="message" id="msg">${body}</div>
+    <button class="primary" id="copy">Copy message</button>
+    <p class="note" id="copyNote" aria-live="polite"></p>
+    <p class="note" id="saveNote" aria-live="polite"></p>
+    <ul class="summary">` +
+    visible().map((st, k) => `<li><span>${esc(st.sumLabel)}</span><button data-jump="${k}">${esc(summaryFor(st))}</button></li>`).join("") +
+    `</ul>` + (S.flow === "rtc" && casualtyList(S.A).length ? `<button class="secondary-btn" id="casUpd">Casualty update</button>` : "") +
+    `<button class="secondary-btn" id="again">Back to home screen</button>`;
+  document.getElementById("copy").addEventListener("click", () => copyText(msg, document.getElementById("copyNote"), document.getElementById("msg")));
+  document.getElementById("again").addEventListener("click", goHome);
+  const cu = document.getElementById("casUpd");
+  if (cu) cu.addEventListener("click", () => startCasualtyUpdate(JSON.parse(JSON.stringify(S.A))));
+  stage.querySelectorAll("[data-jump]").forEach(b => b.addEventListener("click", () => { S.i = Number(b.dataset.jump); S.back = true; render(); }));
+  autoSave(msg);
+}
+
+/* ================= location ================= */
+function locate() {
+  const note = document.getElementById("locNote");
+  const ta = document.getElementById("addr");
+  note.className = "note";
+  if (!("geolocation" in navigator)) { note.className = "note err"; note.textContent = "Location isn't available on this device. Type the address instead."; return; }
+  note.textContent = "Finding your location…";
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    const line = `Lat ${latitude.toFixed(5)}, Long ${longitude.toFixed(5)}`;
+    const grid = toOSGrid(latitude, longitude);
+    const addition = grid ? `${line}\nGrid ref ${grid}` : line;
+    ta.value = ta.value.trim() ? ta.value.trim() + "\n" + addition : addition;
+    ta.dispatchEvent(new Event("input"));
+    note.textContent = `Added your position (accurate to about ${Math.round(accuracy)} m). Add a street name or landmark if you can.`;
+  }, err => {
+    note.className = "note err";
+    note.textContent = err.code === 1
+      ? "Location permission was refused. Type the address instead, or allow location for this page in Settings."
+      : "Couldn't get a location fix. Type the address instead.";
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+}
+
+/* WGS84 -> OSGB36 British National Grid (Helmert, ~5 m accuracy) */
+function toOSGrid(lat, lon) {
+  const rad = Math.PI / 180;
+  let a = 6378137, b = 6356752.3142, e2 = 1 - (b * b) / (a * a);
+  let φ = lat * rad, λ = lon * rad, H = 0;
+  let ν = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2);
+  let x1 = (ν + H) * Math.cos(φ) * Math.cos(λ), y1 = (ν + H) * Math.cos(φ) * Math.sin(λ), z1 = ((1 - e2) * ν + H) * Math.sin(φ);
+  const tx = -446.448, ty = 125.157, tz = -542.060, s = 20.4894e-6;
+  const rx = (-0.1502 / 3600) * rad, ry = (-0.2470 / 3600) * rad, rz = (-0.8421 / 3600) * rad;
+  const x2 = tx + x1 * (1 + s) - y1 * rz + z1 * ry;
+  const y2 = ty + x1 * rz + y1 * (1 + s) - z1 * rx;
+  const z2 = tz - x1 * ry + y1 * rx + z1 * (1 + s);
+  a = 6377563.396; b = 6356256.909; e2 = 1 - (b * b) / (a * a);
+  const p = Math.sqrt(x2 * x2 + y2 * y2);
+  φ = Math.atan2(z2, p * (1 - e2)); let φP = 2 * Math.PI;
+  while (Math.abs(φ - φP) > 4 / a) { ν = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2); φP = φ; φ = Math.atan2(z2 + e2 * ν * Math.sin(φ), p); }
+  λ = Math.atan2(y2, x2);
+  const F0 = 0.9996012717, φ0 = 49 * rad, λ0 = -2 * rad, N0 = -100000, E0 = 400000;
+  const n = (a - b) / (a + b), sinφ = Math.sin(φ), cosφ = Math.cos(φ);
+  ν = a * F0 / Math.sqrt(1 - e2 * sinφ * sinφ);
+  const ρ = a * F0 * (1 - e2) / Math.pow(1 - e2 * sinφ * sinφ, 1.5), η2 = ν / ρ - 1;
+  const Ma = (1 + n + 1.25 * n ** 2 + 1.25 * n ** 3) * (φ - φ0);
+  const Mb = (3 * n + 3 * n ** 2 + 2.625 * n ** 3) * Math.sin(φ - φ0) * Math.cos(φ + φ0);
+  const Mc = (1.875 * n ** 2 + 1.875 * n ** 3) * Math.sin(2 * (φ - φ0)) * Math.cos(2 * (φ + φ0));
+  const Md = (35 / 24) * n ** 3 * Math.sin(3 * (φ - φ0)) * Math.cos(3 * (φ + φ0));
+  const M = b * F0 * (Ma - Mb + Mc - Md);
+  const tan2 = Math.tan(φ) ** 2, tan4 = tan2 * tan2;
+  const I = M + N0, II = (ν / 2) * sinφ * cosφ, III = (ν / 24) * sinφ * cosφ ** 3 * (5 - tan2 + 9 * η2);
+  const IIIA = (ν / 720) * sinφ * cosφ ** 5 * (61 - 58 * tan2 + tan4);
+  const IV = ν * cosφ, V = (ν / 6) * cosφ ** 3 * (ν / ρ - tan2);
+  const VI = (ν / 120) * cosφ ** 5 * (5 - 18 * tan2 + tan4 + 14 * η2 - 58 * tan2 * η2);
+  const dλ = λ - λ0;
+  const N = I + II * dλ ** 2 + III * dλ ** 4 + IIIA * dλ ** 6;
+  const E = E0 + IV * dλ + V * dλ ** 3 + VI * dλ ** 5;
+  if (E < 0 || E >= 700000 || N < 0 || N >= 1300000) return null; // outside GB grid
+  const e100k = Math.floor(E / 100000), n100k = Math.floor(N / 100000);
+  let l1 = (19 - n100k) - (19 - n100k) % 5 + Math.floor((e100k + 10) / 5);
+  let l2 = (19 - n100k) * 5 % 25 + e100k % 5;
+  if (l1 > 7) l1++; if (l2 > 7) l2++;
+  const letters = String.fromCharCode(l1 + 65) + String.fromCharCode(l2 + 65);
+  const e = String(Math.floor(E % 100000)).padStart(5, "0").slice(0, 4);
+  const nn = String(Math.floor(N % 100000)).padStart(5, "0").slice(0, 4);
+  return `${letters} ${e} ${nn}`;
+}
+
+
+async function copyText(text, note, selectEl) {
+  try {
+    await navigator.clipboard.writeText(text);
+    note.className = "note"; note.textContent = "Copied. Paste it into your message to control.";
+  } catch (e) {
+    const r = document.createRange(); r.selectNodeContents(selectEl);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    note.className = "note"; note.textContent = "Message selected. Tap Copy in the menu to copy it.";
+  }
+}
+
+/* ---------- saved messages store ----------
+   Uses the artifact database (private to each signed-in person) when available,
+   otherwise falls back to this device's browser storage. */
+const Store = {
+  mode: "local", items: [], col: null,
+  readLocal() { try { return JSON.parse(localStorage.getItem("savedMessages") || "[]"); } catch (e) { return []; } },
+  writeLocal() { try { localStorage.setItem("savedMessages", JSON.stringify(this.items)); } catch (e) {} },
+  changed() { this.items.sort((a, b) => b.createdAt - a.createdAt); updateCount(); if (!savedScreen.hidden) renderSaved(); },
+  async init() {
+    this.items = this.readLocal(); this.changed();
+    try {
+      if (!window.claude || !claude.use) return;
+      const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+      if (!db || !user) return;
+      const uid = await user.id();
+      if (!uid) return;
+      this.col = db.doc("data/users/" + uid + "/profile").collection("messages");
+      this.mode = "db";
+      this.col.orderBy("createdAt", "desc").limit(500).onSnapshot(snap => {
+        this.items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        this.changed();
+      }, () => { this.mode = "local"; this.items = this.readLocal(); this.changed(); });
+    } catch (e) { this.mode = "local"; }
+  },
+  async save(id, body) {
+    if (this.mode === "db") {
+      try { await this.col.doc(id).set(body); return true; }
+      catch (e) { this.mode = "local"; this.items = this.readLocal(); }
+    }
+    const i = this.items.findIndex(x => x.id === id);
+    if (i >= 0) this.items[i] = { id, ...body }; else this.items.push({ id, ...body });
+    this.writeLocal(); this.changed(); return true;
+  },
+  async remove(id) {
+    if (this.mode === "db") {
+      try { await this.col.doc(id).delete(); return; } catch (e) {}
+    }
+    this.items = this.items.filter(x => x.id !== id); this.writeLocal(); this.changed();
+  }
+};
+
+
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+async function autoSave(text) {
+  if (!S.savedId) { S.savedId = newId(); S.createdAt = Date.now(); }
+  const f = F();
+  const body = { type: S.flow, title: f.title, text, address: oneLine(S.A.address), createdAt: S.createdAt, updatedAt: Date.now(), ...(f.extra ? f.extra(S.A) : {}) };
+  if (S.flow === "rtc") body.answers = JSON.parse(JSON.stringify(S.A));
+  await Store.save(S.savedId, body);
+  const n = document.getElementById("saveNote");
+  if (n) n.textContent = "Saved to Saved messages.";
+}
+
+function updateCount() { document.getElementById("savedCount").textContent = Store.items.length; }
+
+const ACCENTS = { secondary: "var(--ember)", informative: "var(--command)", rtc: "var(--hivis)", casualty: "var(--hivis)" };
+function when(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + ", " +
+         d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderSaved() {
+  document.getElementById("savedWhere").textContent = Store.mode === "db"
+    ? "Kept in your account and visible only to you. Delete them once they've been reviewed."
+    : "Kept on this phone only. Delete them once they've been reviewed.";
+  const list = document.getElementById("savedList");
+  if (!Store.items.length) {
+    list.innerHTML = `<div class="empty">No saved messages yet. Every message you build is saved here automatically.</div>`;
+    return;
+  }
+  list.innerHTML = Store.items.map(m => `
+    <article class="card" style="--accent:${ACCENTS[m.type] || "var(--ink)"}">
+      <div class="card-meta"><strong>${esc(m.title || "Message")}</strong><span>${when(m.createdAt)}</span></div>
+      <pre id="m-${esc(m.id)}">${esc(m.text)}</pre>
+      <div class="card-actions">
+        <button data-copy="${esc(m.id)}">Copy</button>
+        ${m.type === "rtc" && m.answers && casualtyList(m.answers).length ? `<button data-cu="${esc(m.id)}">Casualty update</button>` : ""}
+        <button class="del" data-del="${esc(m.id)}">Delete</button>
+      </div>
+      <p class="note" data-note="${esc(m.id)}" aria-live="polite"></p>
+    </article>`).join("");
+  list.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
+    const m = Store.items.find(x => x.id === b.dataset.copy); if (!m) return;
+    copyText(m.text, list.querySelector(`[data-note="${b.dataset.copy}"]`), document.getElementById("m-" + m.id));
+  }));
+  list.querySelectorAll("[data-cu]").forEach(b => b.addEventListener("click", () => {
+    const m = Store.items.find(x => x.id === b.dataset.cu); if (m) startCasualtyUpdate(m.answers);
+  }));
+  list.querySelectorAll("[data-del]").forEach(b => {
+    let t = null;
+    b.addEventListener("click", () => {
+      if (b.classList.contains("confirm")) { clearTimeout(t); Store.remove(b.dataset.del); return; }
+      b.classList.add("confirm"); b.textContent = "Tap again to delete";
+      t = setTimeout(() => { b.classList.remove("confirm"); b.textContent = "Delete"; }, 4000);
+    });
+  });
+}
+
+Store.init();
+</script>
+</body>
+</html>
